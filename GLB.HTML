@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>3D Plane Scroll Animation</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 300vh; /* long scroll */
+      background: linear-gradient(#87ceeb, #fff);
+      overflow-x: hidden;
+    }
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js"></script>
+
+  <script>
+    // 🎬 Scene setup
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 100);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // 🌤️ Lighting
+    const ambient = new THREE.AmbientLight(0xffffff, 0.6);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+    dirLight.position.set(5, 10, 5);
+    scene.add(ambient, dirLight);
+
+    // 🛩️ Load Plane
+    const loader = new THREE.GLTFLoader();
+    let plane;
+    loader.load("aeroplane.glb", (gltf) => {
+      plane = gltf.scene;
+      plane.scale.set(1.5, 1.5, 1.5);
+      plane.position.set(0, 0, 0);
+      scene.add(plane);
+    });
+
+    // 💨 Smoke particles
+    const smokeGeo = new THREE.PlaneGeometry(0.5, 0.5);
+    const smokeTexture = new THREE.TextureLoader().load("https://i.ibb.co/hKm8nB1/smoke.png"); // Transparent smoke texture
+    const smokeMat = new THREE.MeshBasicMaterial({
+      map: smokeTexture,
+      transparent: true,
+      opacity: 0.4,
+      depthWrite: false,
+    });
+
+    const smokes = [];
+    for (let i = 0; i < 25; i++) {
+      const s = new THREE.Mesh(smokeGeo, smokeMat.clone());
+      s.position.set(0, -0.2, -i * 0.5);
+      s.rotation.z = Math.random() * Math.PI;
+      scene.add(s);
+      smokes.push(s);
+    }
+
+    camera.position.z = 5;
+
+    // 🔄 Animate smoke & scene
+    function animate() {
+      requestAnimationFrame(animate);
+      smokes.forEach((s) => {
+        s.position.y += 0.01;
+        s.material.opacity -= 0.002;
+        if (s.material.opacity <= 0) {
+          s.position.y = -0.2;
+          s.material.opacity = 0.4;
+        }
+      });
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // 🌀 GSAP Scroll Animation
+    gsap.registerPlugin(ScrollTrigger);
+
+    // 1️⃣ Plane zoom-out + move ahead
+    gsap.to(camera.position, {
+      z: 12,
+      scrollTrigger: {
+        trigger: "body",
+        start: "top top",
+        end: "33%",
+        scrub: true,
+      },
+    });
+
+    gsap.to(plane?.scale || { x: 1.5, y: 1.5, z: 1.5 }, {
+      x: 0.6, y: 0.6, z: 0.6,
+      scrollTrigger: {
+        trigger: "body",
+        start: "top top",
+        end: "33%",
+        scrub: true,
+        onUpdate: (self) => {
+          if (plane) plane.scale.set(self.progress + 0.5, self.progress + 0.5, self.progress + 0.5);
+        }
+      },
+    });
+
+    // 2️⃣ Move up-right corner and tilt
+    ScrollTrigger.create({
+      trigger: "body",
+      start: "33%",
+      end: "66%",
+      scrub: true,
+      onUpdate: (self) => {
+        if (plane) {
+          plane.position.x = self.progress * 3;
+          plane.position.y = self.progress * 1.5;
+          plane.rotation.z = -self.progress * 0.5;
+        }
+      }
+    });
+
+    // 3️⃣ Final fly-away motion (depth move)
+    ScrollTrigger.create({
+      trigger: "body",
+      start: "66%",
+      end: "bottom bottom",
+      scrub: true,
+      onUpdate: (self) => {
+        if (plane) {
+          plane.position.z = -self.progress * 15;
+          plane.rotation.y = self.progress * 1.2;
+        }
+      }
+    });
+
+    // 📏 Resize
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
