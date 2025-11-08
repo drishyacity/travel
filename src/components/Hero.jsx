@@ -305,10 +305,10 @@ function Hero() {
   return (
     <section
       ref={heroRef}
-      className="relative h-screen w-full overflow-visible bg-gradient-to-br from-sky-400 via-blue-500 to-cyan-500"
+      className="relative min-h-[100svh] md:h-screen w-full overflow-visible bg-gradient-to-br from-sky-400 via-blue-500 to-cyan-500 pt-16 md:pt-20"
     >
       {/* 3D Canvas with Airplane */}
-      <div ref={canvasWrapRef} className="fixed inset-0 z-0 pointer-events-none" style={{opacity: 1}}>
+      <div ref={canvasWrapRef} className="fixed inset-0 z-40 pointer-events-none" style={{opacity: 1}}>
         <Canvas>
           <PerspectiveCamera makeDefault position={[0, 0, 5]} />
           <AnimatedCamera scrollTarget={heroRef} />
@@ -326,24 +326,24 @@ function Hero() {
 
       {/* Hero Content */}
       <div className="relative z-20 h-full flex flex-col items-center justify-center text-center px-4">
-        <div className="max-w-4xl">
+        <div className="w-full max-w-4xl">
           <h1
             ref={titleRef}
-            className="text-6xl md:text-8xl font-bold text-white mb-6 drop-shadow-2xl"
+            className="text-5xl sm:text-6xl md:text-8xl font-bold text-white mb-4 sm:mb-6 leading-tight drop-shadow-2xl"
           >
             Explore The World
           </h1>
           <p
             ref={subtitleRef}
-            className="text-xl md:text-2xl text-white/90 mb-8 drop-shadow-lg"
+            className="text-base sm:text-lg md:text-2xl text-white/90 mb-6 sm:mb-8 drop-shadow-lg"
           >
             Discover breathtaking destinations and create unforgettable memories with our curated travel experiences
           </p>
-          <div className="flex gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-stretch sm:items-center">
             <Button
               size="lg"
               onClick={scrollToDestinations}
-              className="bg-white text-blue-600 hover:bg-blue-50 text-lg px-8 py-6 shadow-xl transition-transform hover:scale-105"
+              className="w-full sm:w-auto bg-white text-blue-600 hover:bg-blue-50 text-lg px-8 py-5 sm:py-6 shadow-xl transition-transform hover:scale-105"
             >
               <Plane className="mr-2 h-5 w-5" />
               Explore Destinations
@@ -352,7 +352,7 @@ function Hero() {
               size="lg"
               variant="outline"
               onClick={() => document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' })}
-              className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-blue-600 text-lg px-8 py-6 shadow-xl transition-transform hover:scale-105"
+              className="w-full sm:w-auto bg-transparent border-2 border-white text-white hover:bg-white hover:text-blue-600 text-lg px-8 py-5 sm:py-6 shadow-xl transition-transform hover:scale-105"
             >
               <Send className="mr-2 h-5 w-5" />
               Get Started

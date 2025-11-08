@@ -36,7 +36,7 @@ function Navbar() {
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-white/95 backdrop-blur-md shadow-lg'
+          ? 'bg-white/10 backdrop-blur-lg border-b border-white/10 shadow-lg'
           : 'bg-transparent'
       }`}
     >
@@ -97,12 +97,14 @@ function Navbar() {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden pb-4 bg-white/95 backdrop-blur-md rounded-b-lg shadow-lg">
+          <div className="md:hidden pb-4 bg-white/10 backdrop-blur-lg border-t border-white/10 rounded-b-lg shadow-lg">
             {navLinks.map((link) => (
               <button
                 key={link.id}
                 onClick={() => scrollToSection(link.id)}
-                className="block w-full text-left px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                className={`block w-full text-left px-4 py-3 ${
+                  isScrolled ? 'text-gray-800' : 'text-white'
+                } hover:bg-white/10 transition-colors`}
               >
                 {link.label}
               </button>
@@ -110,7 +112,7 @@ function Navbar() {
             <div className="px-4 pt-2">
               <Button
                 onClick={() => scrollToSection('contact')}
-                className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600"
+                className="w-full bg-gradient-to-r from-blue-500 to-cyan-500/90 hover:from-blue-600 hover:to-cyan-600"
               >
                 Book Now
               </Button>
