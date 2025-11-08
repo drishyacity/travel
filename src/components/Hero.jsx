@@ -64,6 +64,79 @@ function Airplane({ scrollTarget }) {
     }));
   }, []);
 
+  // Phase 2: After Hero ends, keep animating with page scroll, bouncing between corners along the bottom
+  useEffect(() => {
+    if (!scrollTarget?.current || !groupRef.current) return;
+
+    const st2 = ScrollTrigger.create({
+      trigger: scrollTarget.current,
+      start: 'bottom top',
+      end: 'bottom+=4000 top',
+      scrub: 0.2,
+      onUpdate: (self) => {
+        const p2 = self.progress; // 0..1 over extended page scroll
+        if (!groupRef.current) return;
+
+        // Keep roughly same depth
+        const currentZ = -12;
+        groupRef.current.position.z = currentZ;
+
+        // Frustum at this depth
+        const camZ = camera.position.z;
+        const distance = Math.max(0.001, camZ - currentZ);
+        const halfH = Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)) * distance;
+        const halfW = halfH * camera.aspect;
+
+        // Margins and baseline at bottom
+        const s = groupRef.current.scale.x; // keep last scale
+        const margin = 0.4 * s;
+        const leftX = -halfW + margin;
+        const rightX = halfW - margin;
+        const baseY = -halfH + margin + 0.10 * s;
+
+        // Triangle-wave progression for ping-pong between left and right
+        const cycles = 3; // number of back-and-forths
+        // Start from right edge moving left: add a half-cycle (1) phase offset
+        const cyc = p2 * cycles + 1;
+        const k = Math.floor(cyc);
+        const frac = cyc - k; // 0..1 within a half-path
+        const forward = k % 2 === 0; // even: left->right, odd: right->left
+
+        // Use cosine ease to smooth speed near edges and avoid teleport feel
+        const eased = 0.5 - 0.5 * Math.cos(Math.PI * frac); // 0..1 easeInOut
+
+        const x = forward
+          ? THREE.MathUtils.lerp(leftX, rightX, eased)
+          : THREE.MathUtils.lerp(rightX, leftX, eased);
+
+        // Slight arc: rise near mid, then return (use eased for symmetry)
+        const climb = 0.20 * s; // arc height
+        const parabola = 1 - 4 * (eased - 0.5) * (eased - 0.5); // 0 at ends, 1 at middle
+        const y = baseY + climb * parabola;
+
+        groupRef.current.position.x = x;
+        groupRef.current.position.y = y;
+        // Smooth the yaw near each edge so it doesn't "teleport" orientation
+        const edgeW = 0.2; // portion of half-cycle used for turning (wider smoothing)
+        let ry = forward ? Math.PI : 0; // base facing
+        if (frac < edgeW) {
+          // starting near left (or right) edge: rotate into travel direction
+          const tt = frac / edgeW;
+          ry = THREE.MathUtils.lerp(forward ? 0 : Math.PI, forward ? Math.PI : 0, tt);
+        } else if (frac > 1 - edgeW) {
+          // approaching next edge: pre-rotate toward next travel direction
+          const tt = (frac - (1 - edgeW)) / edgeW;
+          ry = THREE.MathUtils.lerp(forward ? Math.PI : 0, forward ? 0 : Math.PI, tt);
+        }
+        groupRef.current.rotation.y = ry;
+        groupRef.current.rotation.z = 0.0;
+        groupRef.current.rotation.x = -0.04;
+      }
+    });
+
+    return () => st2.kill();
+  }, [camera, scrollTarget]);
+
   // refs to smoke meshes
   const smokeRefs = useRef([]);
 
@@ -170,19 +243,17 @@ function Airplane({ scrollTarget }) {
           groupRef.current.rotation.z = 0.0;
           groupRef.current.rotation.x = -0.05;
         } else {
-          const t = (p - 0.90) / 0.10;
-          // At right corner: turn back and begin exiting to the right
-          const from = { x: rightSide.x, y: cornerBL.y + 0.08 * s };
-          const outRight = { x: halfW + 0.3 * halfW, y: from.y + 0.04 * s };
-          groupRef.current.position.x = THREE.MathUtils.lerp(from.x, outRight.x, t);
-          groupRef.current.position.y = THREE.MathUtils.lerp(from.y, outRight.y, t);
-          groupRef.current.rotation.y = THREE.MathUtils.lerp(Math.PI, Math.PI * 2.0, t); // turn back
+          // Hold at right corner until phase 2 takes over (no exit here)
+          groupRef.current.position.x = rightSide.x;
+          groupRef.current.position.y = cornerBL.y + 0.08 * s;
+          groupRef.current.rotation.y = Math.PI;
           groupRef.current.rotation.z = 0.0;
           groupRef.current.rotation.x = -0.04;
         }
 
-        // Keep scale
-        groupRef.current.scale.set(s, s, s);
+        // Keep scale (lock after first U-turn so it doesn't get smaller)
+        const sLocked = 3 + (2.6 - 3) * Math.min(p, 0.30);
+        groupRef.current.scale.set(sLocked, sLocked, sLocked);
       }
     });
 
