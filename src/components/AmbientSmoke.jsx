@@ -8,6 +8,7 @@ export default function AmbientSmoke() {
   const rafRef = useRef(0);
   const particlesRef = useRef([]);
   const imgRef = useRef(null);
+  const wrapRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -109,15 +110,32 @@ export default function AmbientSmoke() {
     }
     window.addEventListener('resize', init);
 
+    // Hide overlay when contact section is visible
+    const contactEl = document.getElementById('contact');
+    let observer;
+    if (contactEl) {
+      observer = new IntersectionObserver(
+        (entries) => {
+          const entry = entries[0];
+          if (wrapRef.current) {
+            wrapRef.current.style.display = entry.isIntersecting ? 'none' : 'block';
+          }
+        },
+        { root: null, threshold: 0 }
+      );
+      observer.observe(contactEl);
+    }
+
     return () => {
       cancelAnimationFrame(rafRef.current);
       window.removeEventListener('resize', init);
+      if (observer && contactEl) observer.disconnect();
     };
   }, []);
 
   return (
-    <div className="fixed inset-0 pointer-events-none select-none" style={{ zIndex: 45 }} aria-hidden>
-      <canvas ref={canvasRef} className="w-full h-full" />
+    <div ref={wrapRef} className="fixed inset-0 pointer-events-none select-none" style={{ zIndex: 1 }} aria-hidden>
+      <canvas ref={canvasRef} className="w-full h-full" style={{ pointerEvents: 'none' }} />
     </div>
   );
 }

@@ -409,7 +409,7 @@ function Hero() {
     >
       {/* 3D Canvas with Airplane */}
       <div ref={canvasWrapRef} className="fixed inset-0 z-40 pointer-events-none" style={{opacity: 1}}>
-        <Canvas>
+        <Canvas style={{ pointerEvents: 'none' }}>
           <PerspectiveCamera makeDefault position={[0, 0, 5]} />
           <AnimatedCamera scrollTarget={heroRef} />
           <ambientLight intensity={0.6} />

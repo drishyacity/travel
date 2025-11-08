@@ -149,7 +149,7 @@ function Contact() {
   };
 
   return (
-    <section id="contact" ref={sectionRef} className="py-20 px-4 bg-gradient-to-b from-white to-blue-50">
+    <section id="contact" ref={sectionRef} className="relative z-10 py-20 px-4 bg-gradient-to-b from-white to-blue-50">
       <div className="max-w-7xl mx-auto">
         <div ref={titleRef} className="text-center mb-16">
           <h2 className="text-5xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent">
