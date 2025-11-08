@@ -26,7 +26,7 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div className="App overflow-x-hidden">
+      <div className="App">
         <Navbar />
         <Hero />
         <Destinations />

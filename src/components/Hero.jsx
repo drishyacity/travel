@@ -13,7 +13,7 @@ gsap.registerPlugin(ScrollTrigger);
 import { TextureLoader } from 'three';
 
 // Animated Camera that follows the plane smoothly
-function AnimatedCamera() {
+function AnimatedCamera({ scrollTarget }) {
   const { camera } = useThree();
 
   useEffect(() => {
@@ -22,28 +22,30 @@ function AnimatedCamera() {
 
     // Camera stays at same distance - no zoom
     const cam1 = ScrollTrigger.create({
-      trigger: document.body,
+      trigger: scrollTarget?.current || document.body,
       start: 'top top',
-      end: '+=100vh',
-      scrub: 0.5,
+      end: 'bottom top',
+      scrub: 0.04,
+      // camera does not pin; airplane trigger will handle pinning
       onUpdate: (self) => {
         const p = self.progress;
         // Slight zoom to follow plane forward movement
-        camera.position.z = 5 + p * 3;
+        camera.position.z = 5 + p * 0.4; // tighter frustum to help exit visually
       }
     });
 
     return () => {
-      cam1.kill();
+      // cam1.kill(); // Removed this line to keep the canvas visible
     };
   }, [camera]);
 
   return null;
 }
 
-function Airplane() {
+function Airplane({ scrollTarget }) {
   const groupRef = useRef();
   const smokeGroupRef = useRef();
+  const { camera } = useThree();
   // load glb from public folder
   const gltf = useGLTF('/aeroplane.glb');
   const smokeTex = useLoader(TextureLoader, '/smoke.png');
@@ -73,25 +75,114 @@ function Airplane() {
     groupRef.current.position.set(0, 0, 0);
     groupRef.current.rotation.set(0, 0, 0);
 
-    // Animation: Just move to left corner, NO size change
+    // Animation: move to top-left corner and gradually shrink by the end
     const st1 = ScrollTrigger.create({
-      trigger: document.body,
+      trigger: scrollTarget?.current || document.body,
       start: 'top top',
-      end: '+=100vh',
-      scrub: 0.5,
+      end: 'bottom top',
+      scrub: 0.05,
+      // no pin so Hero scrolls with the animation
+      anticipatePin: 1,
+      invalidateOnRefresh: true,
       onUpdate: (self) => {
         const p = self.progress;
-        if (groupRef.current) {
-          // Move forward (negative Z)
-          groupRef.current.position.z = -p * 10;
-          // Move to left side corner (negative X for left)
-          groupRef.current.position.x = -p * 5;
-          groupRef.current.position.y = p * 2;
-          // Slight tilt as it moves
-          groupRef.current.rotation.z = p * 0.3;
-          // Size stays the same - NO SHRINKING
-          groupRef.current.scale.set(3, 3, 3);
+        if (!groupRef.current) return;
+
+        // Move forward (negative Z) throughout
+        const endZ = -12;
+        const currentZ = -p * Math.abs(endZ);
+        groupRef.current.position.z = currentZ;
+
+        // Camera frustum at current depth
+        const camZ = camera.position.z;
+        const distance = Math.max(0.001, camZ - currentZ);
+        const halfH = Math.tan(THREE.MathUtils.degToRad(camera.fov * 0.5)) * distance;
+        const halfW = halfH * camera.aspect;
+
+        // Base scale and margins
+        const s = 3 + (2.6 - 3) * Math.min(p, 1); // grow to ~2.6 by end of phase 1 and keep
+        const margin = 0.4 * s;
+
+        // Corner targets (bottom-left and right side)
+        const cornerBL = {
+          x: -halfW + margin,
+          y: -halfH + margin + 0.15 * s,
+        };
+        const outsideLeft = {
+          x: -halfW - 0.5 * margin,
+          y: cornerBL.y + 0.1 * s,
+        };
+        const rightSide = {
+          x: halfW - margin,
+          y: cornerBL.y + 0.05 * s,
+        };
+
+        // Phases:
+        // 0-0.15 approach, 0.15-0.30 quick U-turn just past left edge,
+        // 0.30-0.55 re-enter to center-bottom,
+        // 0.55-0.75 slight climb while heading right (center upward arc),
+        // 0.75-0.90 descend toward right corner,
+        // 0.90-1.0 turn back at right corner and begin exiting (keeps animating with page scroll)
+        if (p < 0.15) {
+          const t = p / 0.15;
+          groupRef.current.position.x = THREE.MathUtils.lerp(0, cornerBL.x, t);
+          groupRef.current.position.y = THREE.MathUtils.lerp(0, cornerBL.y, t);
+          groupRef.current.rotation.z = t * 0.02; // slight roll
+          groupRef.current.rotation.x = -t * 0.10; // nose-down
+        } else if (p < 0.30) {
+          const t = (p - 0.15) / 0.15; // quick U-turn
+          const exitX = -halfW - 0.2 * halfW; // ~20% beyond left edge
+          const exitY = cornerBL.y + 0.18 * s;
+          groupRef.current.position.x = THREE.MathUtils.lerp(cornerBL.x, exitX, t);
+          groupRef.current.position.y = THREE.MathUtils.lerp(cornerBL.y, exitY, t);
+          groupRef.current.rotation.y = THREE.MathUtils.lerp(0, Math.PI, t); // yaw 180°
+          groupRef.current.rotation.z = THREE.MathUtils.lerp(0.02, 0.0, t);
+          groupRef.current.rotation.x = THREE.MathUtils.lerp(-0.10, -0.07, t);
+        } else if (p < 0.55) {
+          const t = (p - 0.30) / 0.25;
+          // Re-enter to center-bottom
+          const startX = -halfW - 0.2 * halfW;
+          const startY = cornerBL.y + 0.18 * s;
+          const centerBottom = { x: 0, y: cornerBL.y + 0.10 * s };
+          groupRef.current.position.x = THREE.MathUtils.lerp(startX, centerBottom.x, t);
+          groupRef.current.position.y = THREE.MathUtils.lerp(startY, centerBottom.y, t);
+          groupRef.current.rotation.y = Math.PI;
+          groupRef.current.rotation.z = 0.0;
+          groupRef.current.rotation.x = -0.06;
+        } else if (p < 0.75) {
+          const t = (p - 0.55) / 0.20;
+          // Slight climb near center while continuing right
+          const from = { x: 0, y: cornerBL.y + 0.10 * s };
+          const to = { x: halfW * 0.6, y: from.y + 0.25 * s };
+          groupRef.current.position.x = THREE.MathUtils.lerp(from.x, to.x, t);
+          groupRef.current.position.y = THREE.MathUtils.lerp(from.y, to.y, t);
+          groupRef.current.rotation.y = Math.PI;
+          groupRef.current.rotation.z = 0.0;
+          groupRef.current.rotation.x = -0.04; // reduce pitch while climbing
+        } else if (p < 0.90) {
+          const t = (p - 0.75) / 0.15;
+          // Descend toward right corner
+          const from = { x: halfW * 0.6, y: cornerBL.y + 0.35 * s };
+          const rightCorner = { x: rightSide.x, y: cornerBL.y + 0.08 * s };
+          groupRef.current.position.x = THREE.MathUtils.lerp(from.x, rightCorner.x, t);
+          groupRef.current.position.y = THREE.MathUtils.lerp(from.y, rightCorner.y, t);
+          groupRef.current.rotation.y = Math.PI;
+          groupRef.current.rotation.z = 0.0;
+          groupRef.current.rotation.x = -0.05;
+        } else {
+          const t = (p - 0.90) / 0.10;
+          // At right corner: turn back and begin exiting to the right
+          const from = { x: rightSide.x, y: cornerBL.y + 0.08 * s };
+          const outRight = { x: halfW + 0.3 * halfW, y: from.y + 0.04 * s };
+          groupRef.current.position.x = THREE.MathUtils.lerp(from.x, outRight.x, t);
+          groupRef.current.position.y = THREE.MathUtils.lerp(from.y, outRight.y, t);
+          groupRef.current.rotation.y = THREE.MathUtils.lerp(Math.PI, Math.PI * 2.0, t); // turn back
+          groupRef.current.rotation.z = 0.0;
+          groupRef.current.rotation.x = -0.04;
         }
+
+        // Keep scale
+        groupRef.current.scale.set(s, s, s);
       }
     });
 
@@ -99,6 +190,20 @@ function Airplane() {
       st1.kill();
     };
   }, []);
+
+  // After model load, compute tail position and place smoke at the tail so it follows the plane
+  useEffect(() => {
+    if (!gltf?.scene || !smokeGroupRef.current) return;
+    const box = new THREE.Box3().setFromObject(gltf.scene);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+    // Assuming forward is -Z, tail should be at +Z side of the model
+    const tailZ = center.z + size.z / 2;
+    // Slight downward offset to avoid clipping body; adjust X if needed
+    smokeGroupRef.current.position.set(0, center.y - size.y * 0.1, tailZ + 0.05);
+  }, [gltf]);
 
   useFrame((state, delta) => {
     // Animate smoke particles - more realistic and visible
@@ -131,7 +236,7 @@ function Airplane() {
       <primitive object={gltf.scene} />
 
       {/* Smoke trail group positioned at the tail of the plane */}
-      <group ref={smokeGroupRef} position={[0, -0.3, -0.7]}>
+      <group ref={smokeGroupRef} position={[0, 0, 0]}>
         {smokeMeta.map((s, i) => (
           <mesh
             key={s.id}
@@ -157,6 +262,7 @@ function Airplane() {
 
 function Hero() {
   const heroRef = useRef();
+  const canvasWrapRef = useRef();
   const titleRef = useRef();
   const subtitleRef = useRef();
 
@@ -199,18 +305,18 @@ function Hero() {
   return (
     <section
       ref={heroRef}
-      className="relative h-screen w-full overflow-hidden bg-gradient-to-br from-sky-400 via-blue-500 to-cyan-500"
+      className="relative h-screen w-full overflow-visible bg-gradient-to-br from-sky-400 via-blue-500 to-cyan-500"
     >
       {/* 3D Canvas with Airplane */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
+      <div ref={canvasWrapRef} className="fixed inset-0 z-0 pointer-events-none" style={{opacity: 1}}>
         <Canvas>
           <PerspectiveCamera makeDefault position={[0, 0, 5]} />
-          <AnimatedCamera />
+          <AnimatedCamera scrollTarget={heroRef} />
           <ambientLight intensity={0.6} />
           <directionalLight position={[10, 10, 5]} intensity={1.2} />
           <pointLight position={[-10, -10, -5]} intensity={0.5} color="#60a5fa" />
           <Suspense fallback={null}>
-            <Airplane />
+            <Airplane scrollTarget={heroRef} />
           </Suspense>
         </Canvas>
       </div>
