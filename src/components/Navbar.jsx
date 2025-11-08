@@ -36,7 +36,7 @@ function Navbar() {
     <nav
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-white/10 backdrop-blur-lg border-b border-white/10 shadow-lg'
+          ? 'bg-white/60 backdrop-blur-md border-b border-white/20 shadow-lg'
           : 'bg-transparent'
       }`}
     >
@@ -51,7 +51,7 @@ function Navbar() {
               isScrolled ? 'text-blue-600' : 'text-white'
             }`} />
             <span className={isScrolled ? 'text-gray-800' : 'text-white'}>
-              Explore Travel
+              Easygo Travels
             </span>
           </button>
 
@@ -97,7 +97,7 @@ function Navbar() {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="md:hidden pb-4 bg-white/10 backdrop-blur-lg border-t border-white/10 rounded-b-lg shadow-lg">
+          <div className="md:hidden pb-4 bg-white/70 backdrop-blur-md border-t border-white/20 rounded-b-lg shadow-lg">
             {navLinks.map((link) => (
               <button
                 key={link.id}

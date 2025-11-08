@@ -12,7 +12,7 @@ function Footer() {
           <div className="col-span-1 md:col-span-2">
             <div className="flex items-center gap-2 mb-4">
               <Plane className="h-8 w-8 text-cyan-400" />
-              <h3 className="text-2xl font-bold">Explore Travel</h3>
+              <h3 className="text-2xl font-bold">EasyGo Travels</h3>
             </div>
             <p className="text-gray-400 mb-4">
               Your gateway to unforgettable adventures. We specialize in creating personalized travel experiences that turn your dreams into reality.
@@ -59,7 +59,7 @@ function Footer() {
 
         {/* Bottom Bar */}
         <div className="border-t border-gray-700 pt-8 text-center text-gray-400">
-          <p>&copy; {currentYear} Explore Travel Agency. All rights reserved.</p>
+          <p>&copy; {currentYear} EasyGo Travel Agency. All rights reserved.</p>
           <p className="mt-2 text-sm">Made with passion for travelers worldwide</p>
         </div>
       </div>

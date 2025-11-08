@@ -2,6 +2,7 @@ import React, { useEffect } from "react";
 import "./App.css";
 import { BrowserRouter } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import AmbientSmoke from "./components/AmbientSmoke";
 import Hero from "./components/Hero";
 import Destinations from "./components/Destinations";
 import Services from "./components/Services";
@@ -18,6 +19,8 @@ function App() {
   useEffect(() => {
     // Smooth scroll behavior
     document.documentElement.style.scrollBehavior = 'smooth';
+    // Ensure page title in SPA
+    document.title = 'Easygo Travels';
     
     return () => {
       document.documentElement.style.scrollBehavior = 'auto';
@@ -28,6 +31,7 @@ function App() {
     <BrowserRouter>
       <div className="App">
         <Navbar />
+        <AmbientSmoke />
         <Hero />
         <Destinations />
         <Services />

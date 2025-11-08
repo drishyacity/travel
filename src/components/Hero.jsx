@@ -50,17 +50,14 @@ function Airplane({ scrollTarget }) {
   const gltf = useGLTF('/aeroplane.glb');
   const smokeTex = useLoader(TextureLoader, '/smoke.png');
 
-  // prepare smoke particles metadata - more particles for better trail
-  const smokeCount = 50;
+  // prepare smoke particles metadata for a straight-line trail
+  const smokeCount = 0; // disable plane smoke
   const smokeMeta = useMemo(() => {
     return new Array(smokeCount).fill(0).map((_, i) => ({
       id: i,
-      z: -i * 0.3,
-      rot: Math.random() * Math.PI * 2,
-      offsetY: -0.2 - Math.random() * 0.4,
-      offsetX: (Math.random() - 0.5) * 0.25,
-      size: 0.7 + Math.random() * 1.0,
-      initialOpacity: 0.6 + Math.random() * 0.3,
+      offset: i, // index along the line
+      size: 0.7, // base size
+      opacity: Math.max(0.2, 1 - i / smokeCount),
     }));
   }, []);
 
@@ -276,28 +273,59 @@ function Airplane({ scrollTarget }) {
     smokeGroupRef.current.position.set(0, center.y - size.y * 0.1, tailZ + 0.05);
   }, [gltf]);
 
-  useFrame((state, delta) => {
-    // Animate smoke particles - more realistic and visible
+  // Track plane world position to compute motion direction
+  const prevPlaneWorldPos = useRef(new THREE.Vector3());
+  const dirWorldRef = useRef(new THREE.Vector3(0, 0, -1)); // default forward -Z
+  useEffect(() => {
+    if (groupRef.current) {
+      groupRef.current.getWorldPosition(prevPlaneWorldPos.current);
+    }
+  }, []);
+
+  useFrame((state) => {
+    if (smokeCount === 0) return; // skip when disabled
+    if (!groupRef.current || !smokeGroupRef.current) return;
+    // Compute plane velocity direction in world space
+    const curr = new THREE.Vector3();
+    groupRef.current.getWorldPosition(curr);
+    const vel = curr.clone().sub(prevPlaneWorldPos.current);
+    const speed = vel.length();
+    if (speed > 1e-6) {
+      const norm = vel.clone().multiplyScalar(1 / speed);
+      // Smooth the direction to avoid jitter in the smoke line
+      dirWorldRef.current.lerp(norm, 0.22).normalize();
+    }
+    prevPlaneWorldPos.current.copy(curr);
+
+    // Opposite direction for smoke
+    const smokeDirWorld = dirWorldRef.current.clone().negate();
+    const tailWorld = new THREE.Vector3();
+    smokeGroupRef.current.getWorldPosition(tailWorld);
+
+    // Place sprites along a straight line from tail backward
+    // Trail length scales slightly with plane speed
+    const spacingBase = 0.32;
+    const spacing = spacingBase * (1 + Math.min(2.0, speed) * 0.5);
+    const cam = state.camera;
+
     smokeRefs.current.forEach((m, i) => {
       if (!m) return;
-      // Smoke rises and disperses naturally
-      m.position.y += 0.02 + (i % 4) * 0.005;
-      m.position.x += (Math.sin(state.clock.elapsedTime * 0.3 + i * 0.5) * 0.004);
-      // Fade out gradually with variation
-      m.material.opacity -= 0.005 + (i % 7) * 0.0008;
-      // Rotate for natural dispersion
-      m.rotation.z += 0.005 * (i % 5 + 1);
-      // Scale up as it disperses (more visible)
-      m.scale.x += 0.002;
-      m.scale.y += 0.002;
-      
-      // Reset when faded - create continuous trail
-      if (m.material.opacity <= 0) {
-        m.position.y = smokeMeta[i].offsetY;
-        m.position.x = smokeMeta[i].offsetX;
-        m.material.opacity = smokeMeta[i].initialOpacity;
-        m.scale.set(1, 1, 1);
-        m.rotation.z = Math.random() * Math.PI * 2;
+      const dist = i * spacing;
+      const targetWorld = tailWorld.clone().addScaledVector(smokeDirWorld, dist);
+      // convert to local space of smoke group so child meshes follow plane
+      const local = targetWorld.clone();
+      smokeGroupRef.current.worldToLocal(local);
+      m.position.copy(local);
+      // face the camera for billboard effect
+      m.lookAt(cam.position);
+      // adjust opacity/scale for smooth effect (soft exponential falloff)
+      const meta = smokeMeta[i];
+      if (meta) {
+        const t = i / (smokeCount - 1);
+        const fade = Math.max(0.12, Math.pow(1 - t, 1.8));
+        m.material.opacity = 0.32 * fade;
+        const s = meta.size * (0.8 + 0.2 * fade);
+        m.scale.set(s, s * 0.8, 1);
       }
     });
   });
@@ -316,10 +344,11 @@ function Airplane({ scrollTarget }) {
             rotation={[0, 0, s.rot]}
           >
             <planeGeometry args={[s.size, s.size * 0.75]} />
-            <meshBasicMaterial 
-              map={smokeTex} 
-              transparent 
-              depthWrite={false} 
+            <meshBasicMaterial
+              map={smokeTex}
+              transparent
+              depthWrite={false}
+              depthTest={false}
               opacity={s.initialOpacity}
               side={THREE.DoubleSide}
               blending={THREE.NormalBlending}
@@ -400,7 +429,8 @@ function Hero() {
         <div className="w-full max-w-4xl">
           <h1
             ref={titleRef}
-            className="text-5xl sm:text-6xl md:text-8xl font-bold text-white mb-4 sm:mb-6 leading-tight drop-shadow-2xl"
+            className="text-6xl sm:text-7xl md:text-9xl font-bold text-white mb-4 sm:mb-6 leading-tight drop-shadow-2xl"
+            style={{ fontFamily: '"Caveat", cursive' }}
           >
             Explore The World
           </h1>

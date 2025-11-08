@@ -11,8 +11,8 @@ import { Calendar } from './ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { CalendarIcon, Send, MapPin, Phone, Mail } from 'lucide-react';
 import { format } from 'date-fns';
-import { submitBooking } from '../mock';
 import { toast } from '../hooks/use-toast';
+// switched to serverless SMTP API at /api/contact
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -90,11 +90,27 @@ function Contact() {
         submittedAt: new Date().toISOString()
       };
 
-      const result = await submitBooking(bookingData);
+      // Basic email validation
+      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+      if (!emailPattern.test(bookingData.email)) {
+        throw new Error('INVALID_EMAIL');
+      }
+
+      // Send to serverless function
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bookingData)
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const code = data?.code || 'SEND_FAILED';
+        throw new Error(code);
+      }
 
       toast({
-        title: "Booking Request Submitted!",
-        description: "Our team will contact you within 24 hours to confirm your booking."
+        title: 'Booking Request Submitted!',
+        description: 'Confirmation sent to your email. We will contact you within 24 hours.'
       });
 
       // Reset form
@@ -108,11 +124,25 @@ function Contact() {
       });
       setDate(undefined);
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive"
-      });
+      if (error?.message === 'INVALID_EMAIL') {
+        toast({
+          title: 'Invalid email address',
+          description: 'Please enter a valid email like name@example.com',
+          variant: 'destructive'
+        });
+      } else if (error?.message === 'SEND_FAILED') {
+        toast({
+          title: 'Could not send message',
+          description: 'Server failed to send email. Please try again later.',
+          variant: 'destructive'
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Something went wrong while sending your request. Please try again.',
+          variant: 'destructive'
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
