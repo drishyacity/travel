@@ -9,15 +9,20 @@ import { toast } from '../hooks/use-toast';
 
 gsap.registerPlugin(ScrollTrigger);
 
+// Local WEBP filenames placed in /public
+const LOCAL_IMAGES = {
+  'Maldives Paradise': '/photo-1603477849227-705c424d1d80_11zon.webp',
+  'Bali Adventure': '/photo-1535262412227-85541e910204_11zon.webp',
+  'Caribbean Dreams': '/photo-1507525428034-b723cf961d3e_11zon.webp',
+  'Seychelles Escape': '/photo-1586500036065-bdaeac7a4feb_11zon.webp',
+  'Fiji Islands': '/pexels-photo-240526_11zon.webp',
+  'Tahiti Paradise': '/pexels-photo-1591373_11zon.webp'
+};
+
 function DestinationCard({ destination, index }) {
   const cardRef = useRef();
-  // Build a slug to reference local webp in public folder
-  const slug = destination.name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/(^-|-$)/g, '');
-  const localSrc = `/destinations/${slug}.webp`;
-  const [imgSrc, setImgSrc] = useState(localSrc);
+  const preferredLocal = LOCAL_IMAGES[destination.name];
+  const [imgSrc, setImgSrc] = useState(preferredLocal || destination.image);
 
   useEffect(() => {
     // 3D transform animation on scroll
