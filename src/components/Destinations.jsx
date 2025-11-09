@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { destinations } from '../mock';
@@ -11,6 +11,13 @@ gsap.registerPlugin(ScrollTrigger);
 
 function DestinationCard({ destination, index }) {
   const cardRef = useRef();
+  // Build a slug to reference local webp in public folder
+  const slug = destination.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+  const localSrc = `/destinations/${slug}.webp`;
+  const [imgSrc, setImgSrc] = useState(localSrc);
 
   useEffect(() => {
     // 3D transform animation on scroll
@@ -94,8 +101,10 @@ function DestinationCard({ destination, index }) {
       <Card className="overflow-hidden h-full shadow-2xl hover:shadow-3xl transition-shadow duration-300 border-0">
         <div className="relative h-64 overflow-hidden">
           <img
-            src={destination.image}
+            src={imgSrc}
             alt={destination.name}
+            loading="lazy"
+            onError={() => setImgSrc(destination.image)}
             className="w-full h-full object-cover transform hover:scale-110 transition-transform duration-700"
           />
           <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full flex items-center gap-1">
